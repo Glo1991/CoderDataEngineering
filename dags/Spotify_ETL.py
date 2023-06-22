@@ -4,11 +4,16 @@ import pandas as pd
 import psycopg2
 from psycopg2.extras import execute_values
 from airflow.models import DAG, Variable
+import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import smtplib
+
 
 url="data-engineer-cluster.cyhh5bfevlmn.us-east-1.redshift.amazonaws.com"
 data_base="data-engineer-database"
 user=Variable.get("user_redshift")
-pwd= Variable.get("contraseña_redshift")
+pwd= Variable.get("secret_pass_redshift")
 client_id_Spotify= Variable.get("client_id_Spotify")
 client_secret_Spotify= Variable.get("client_secret_Spotify")
 def get_top_songs():
@@ -18,7 +23,7 @@ def get_top_songs():
     client_credentials_manager = SpotifyClientCredentials(client_id, client_secret)
     sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
     results = sp.search(q='year:2023', type='track', limit=50)
-    data = {'Id': [],'Artista': [], 'Cancion': [],'Duracion_ms': [], 'Genero': [],'Album': [], 'Album_img': [], 'Total_canciones_album': [], 'Popularidad': [], 'fecha_lanzamiento': []}
+    data = {'Id': [],'Artista': [], 'Cancion': [],'Duracion_ms': [], 'Genero': [],'Album': [], 'Album_img': [], 'Total_canciones_album': [], 'Popularidad': [], 'fecha_lanzamiento': [],'fecha_modificacion': []}
     for track in results['tracks']['items']:
         id = track['id']
         artist_name = track['artists'][0]['name']
@@ -37,6 +42,7 @@ def get_top_songs():
         album_group = album_group.replace("'", "")
         #Separar el género por coma
         track_genre = ', '.join(track_genre)
+        now = datetime.date.today().strftime('%Y-%m-%d')
 
         data['Id'].append(id)
         data['Artista'].append(artist_name)
@@ -48,6 +54,7 @@ def get_top_songs():
         data['Genero'].append(track_genre)
         data['Popularidad'].append(track_popularity)
         data['fecha_lanzamiento'].append(track_year)
+        data['fecha_modificacion'].append(now)
 
 
     df = pd.DataFrame(data)
@@ -88,12 +95,13 @@ def conectar_Redshift():
             ,artista VARCHAR(255)   
             ,cancion VARCHAR(255)  
             ,genero VARCHAR(300)   
-            ,album VARCHAR(100)   
+            ,album VARCHAR(200)   
             ,total_canciones_album INTEGER  
             ,Popularidad INTEGER 
             ,fecha_lanzamiento date   
             ,duracion_ms INTEGER   
-            ,album_img VARCHAR(300) 
+            ,album_img VARCHAR(300)
+            ,fecha_modificacion date 
             )
         """)
         conn.commit()
@@ -119,7 +127,7 @@ def insert_data():
             execute_values(
                 cur,
                 '''
-                    INSERT INTO canciones (Id, Artista, Cancion, Duracion_ms, Genero, Album, Album_img, Total_canciones_album,Popularidad,fecha_lanzamiento)
+                    INSERT INTO canciones (Id, Artista, Cancion, Duracion_ms, Genero, Album, Album_img, Total_canciones_album,Popularidad,fecha_lanzamiento,fecha_modificacion)
                     VALUES %s
                     ''',
                     [tuple(row) for row in df.to_numpy()],
@@ -131,3 +139,30 @@ def insert_data():
         except Exception as e:
             print("No es posible insertar datos")
             print(e)
+            
+Pass_Email= Variable.get("secret_pass_gmail")
+smtp_server = 'smtp.gmail.com'
+smtp_port = 587
+sender_email = 'glo.tarcaya@gmail.com'
+password = Pass_Email
+
+
+def send_email():
+        try:
+            subject = 'Carga de datos'
+            body_text = 'Los datos fueron cargados a la base de datos exitosamente.'
+
+            msg = MIMEMultipart()
+            msg['From'] = sender_email
+            msg['To'] = sender_email
+            msg['Subject'] = subject
+            msg.attach(MIMEText(body_text, 'plain'))
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()
+                server.login(sender_email, password)
+                server.send_message(msg)
+            print('El email fue enviado correctamente.')
+
+        except Exception as exception:
+            print(exception)
+            print('El email no se pudo enviar.')

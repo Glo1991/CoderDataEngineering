@@ -103,3 +103,16 @@ logs/scheduler/2023-05-22/Dag_HolaMundo.py.log
 logs/scheduler/2023-05-23/Dag_Entregable.py.log
 logs/scheduler/2023-05-23/Dag_HolaMundo.py.log
 logs/scheduler/2023-05-23/Spotify_ETL.py.log
+config/logs/
+.cache
+logs/
+.pid
+.pyc
+config/airflow-worker.pid
+dags/__pycache__/Dag_Entregable.cpython-37.pyc
+dags/__pycache__/Dag_Entregable.cpython-37.pyc
+dags/__pycache__/Dag_Entregable.cpython-37.pyc
+dags/__pycache__/Spotify_ETL.cpython-37.pyc
+.gitignore
+dags/__pycache__/Spotify_ETL.cpython-37.pyc
+dags/__pycache__/Spotify_ETL.cpython-37.pyc
